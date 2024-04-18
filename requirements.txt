@@ -1,0 +1,6 @@
+streamlit
+pandas
+joblib
+rdkit-pypi
+scikit-learn==1.2.2
+
