@@ -2,5 +2,6 @@ streamlit
 pandas
 joblib
 rdkit-pypi
-scikit-learn==1.2.2
+scikit-learn upper than 1.2.2
+
 
