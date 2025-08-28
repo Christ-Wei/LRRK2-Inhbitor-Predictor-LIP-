@@ -11,18 +11,15 @@ from rdkit import DataStructs
 
 
 # ---------------- USER CHOICE ----------------
-print("Please select the prediction model:")
-print("A. Sensitive Predictor: minimizes overlooking potentially effective hits, ideal for the early-stage virtual screening.")
-print("B. Precise Predictor  : more confident to the positive-predicted hits, ideal for the streamlining-virtual screening.")
-print("C. Balanced Predictor : balances sensitivity and specificity. ")
+st.subheader("Select the prediction model")
 
 choice = st.radio(
-    "Please select the prediction model:",
-    ["A", "B", "C"],
+    label="Prediction Model",
+    options=["A", "B", "C"],
     format_func=lambda x: {
-        "A": "A. Sensitive Predictor: minimizes overlooking potentially effective hits, ideal for early-stage virtual screening.",
-        "B": "B. Precise Predictor  : more confident to positive-predicted hits, ideal for streamlining virtual screening.",
-        "C": "C. Balanced Predictor : balances sensitivity and specificity."
+        "A": "Sensitive Predictor (minimizes overlooking potentially effective hits, ideal for early-stage virtual screening)",
+        "B": "Precise Predictor (more confident in positive-predicted hits, ideal for streamlining virtual screening)",
+        "C": "Balanced Predictor (balances sensitivity and specificity)"
     }[x]
 )
 
@@ -88,4 +85,5 @@ output_df = pd.DataFrame({
     id_column: ids,
     "Class": predicted_classes
 })
+
 
