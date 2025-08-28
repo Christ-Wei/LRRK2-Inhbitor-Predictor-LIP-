@@ -9,20 +9,13 @@ import base64
 import os
 import numpy as np
 from rdkit import DataStructs
+import base64, joblib
+from io import BytesIO
 
-
-# ---------------- USER CHOICE ----------------
-st.subheader("Select the prediction model")
-
-choice = st.radio(
-    label="Prediction Model",
-    options=["A", "B", "C"],
-    format_func=lambda x: {
-        "A": "Sensitive Predictor (minimizes overlooking potentially effective hits, ideal for early-stage virtual screening)",
-        "B": "Precise Predictor (more confident in positive-predicted hits, ideal for streamlining virtual screening)",
-        "C": "Balanced Predictor (balances sensitivity and specificity)"
-    }[x]
-)
+def load_model_from_string(base64_string):
+    model_bytes = base64.b64decode(base64_string)
+    model_buffer = BytesIO(model_bytes)
+    return joblib.load(model_buffer)
 
 # ---------------- MODEL CONFIGS ----------------
 MODELS = {
@@ -48,6 +41,19 @@ MODELS = {
 
 config = MODELS[choice]
 model = load_model_from_string(config["string"])
+
+# ---------------- USER CHOICE ----------------
+st.subheader("Select the prediction model")
+
+choice = st.radio(
+    label="Prediction Model",
+    options=["A", "B", "C"],
+    format_func=lambda x: {
+        "A": "Sensitive Predictor (minimizes overlooking potentially effective hits, ideal for early-stage virtual screening)",
+        "B": "Precise Predictor (more confident in positive-predicted hits, ideal for streamlining virtual screening)",
+        "C": "Balanced Predictor (balances sensitivity and specificity)"
+    }[x]
+)
 
 # ---------------- DATA LOADING ----------------
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
@@ -86,6 +92,7 @@ output_df = pd.DataFrame({
     id_column: ids,
     "Class": predicted_classes
 })
+
 
 
 
