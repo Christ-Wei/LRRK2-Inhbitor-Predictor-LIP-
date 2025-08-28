@@ -57,9 +57,12 @@ config = MODELS[choice]
 st.success(f"✅ Selected model: {config['name']}")
 model = load_model_from_string(config["string"])
 
-
 # ---------------- DATA LOADING ----------------
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+
+if uploaded_file is None:
+    st.stop()
+
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
@@ -68,37 +71,41 @@ if uploaded_file is not None:
     smiles_column = st.selectbox("Select the SMILES column", df.columns)
     id_column = st.selectbox("Select the ID column", df.columns)
 
-    st.success(f"SMILES column: {smiles_column}, ID column: {id_column}")
+    if st.button("Run Prediction"):
+        # ---------------- FEATURE GENERATION ----------------
+        fps, ids, smiles_list = [], [], []
 
+        for _, row in df.iterrows():
+            smi = row[smiles_column]
+            mol = Chem.MolFromSmiles(smi)
+            if mol is not None:
+                fp = AllChem.GetMorganFingerprintAsBitVect(mol, config["radius"], nBits=128)
+                arr = np.zeros((fp.GetNumBits(),), dtype=int)
+                DataStructs.ConvertToNumpyArray(fp, arr)
+                fps.append(arr)
+                ids.append(row[id_column])
+                smiles_list.append(smi)
 
-# ---------------- FEATURE GENERATION ----------------
-fps, ids, smiles_list = [], [], []
+        X_predict = np.array(fps)
 
-for _, row in df.iterrows():
-    smi = row[smiles_column]
-    mol = Chem.MolFromSmiles(smi)
-    if mol is not None:
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, config["radius"], nBits=128)
-        arr = np.zeros((1,))
-        DataStructs.ConvertToNumpyArray(fp, arr)
-        fps.append(arr)
-        ids.append(row[id_column])
-        smiles_list.append(smi)
+        # ---------------- PREDICTION ----------------
+        predicted_classes = model.predict(X_predict)
 
-X_predict = np.array(fps)
+        output_df = pd.DataFrame({
+            smiles_column: smiles_list,
+            id_column: ids,
+            "Class": predicted_classes
+        })
 
-# ---------------- PREDICTION ----------------
-predicted_classes = model.predict(X_predict)
+        st.subheader("Prediction Results")
+        st.dataframe(output_df)
 
-output_df = pd.DataFrame({
-    smiles_column: smiles_list,
-    id_column: ids,
-    "Class": predicted_classes
-})
-
-
-
-
-
-
-
+        # ---------------- DOWNLOAD ----------------
+        csv = output_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "Download Predictions",
+            csv,
+            config["output"],
+            "text/csv",
+            key="download-csv"
+        )
