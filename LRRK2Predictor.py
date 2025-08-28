@@ -16,9 +16,15 @@ print("A. Sensitive Predictor: minimizes overlooking potentially effective hits,
 print("B. Precise Predictor  : more confident to the positive-predicted hits, ideal for the streamlining-virtual screening.")
 print("C. Balanced Predictor : balances sensitivity and specificity. ")
 
-choice = input("Enter your choice (A, B, or C): ").strip().upper()
-if choice not in ["A", "B", "C"]:
-    raise ValueError("Invalid choice! Please enter Letter A, B, or C.")
+choice = st.radio(
+    "Please select the prediction model:",
+    ["A", "B", "C"],
+    format_func=lambda x: {
+        "A": "A. Sensitive Predictor: minimizes overlooking potentially effective hits, ideal for early-stage virtual screening.",
+        "B": "B. Precise Predictor  : more confident to positive-predicted hits, ideal for streamlining virtual screening.",
+        "C": "C. Balanced Predictor : balances sensitivity and specificity."
+    }[x]
+)
 
 # ---------------- MODEL CONFIGS ----------------
 MODELS = {
@@ -82,3 +88,4 @@ output_df = pd.DataFrame({
     id_column: ids,
     "Class": predicted_classes
 })
+
