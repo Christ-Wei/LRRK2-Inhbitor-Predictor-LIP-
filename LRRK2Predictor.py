@@ -42,7 +42,6 @@ MODELS = {
 
 # ---------------- USER CHOICE ----------------
 st.subheader("Select the prediction model")
-
 choice = st.radio(
     "Prediction Model",
     ["A", "B", "C"],
@@ -53,9 +52,10 @@ choice = st.radio(
     }[x]
 )
 
-# ---------------- SELECTED CONFIG ----------------
+# ---------------- LOAD SELECTED MODEL ----------------
 config = MODELS[choice]
 st.success(f"✅ Selected model: {config['name']}")
+model = load_model_from_string(config["string"])
 
 
 # ---------------- DATA LOADING ----------------
@@ -95,6 +95,7 @@ output_df = pd.DataFrame({
     id_column: ids,
     "Class": predicted_classes
 })
+
 
 
 
