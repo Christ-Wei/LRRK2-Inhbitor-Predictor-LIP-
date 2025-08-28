@@ -46,14 +46,17 @@ model = load_model_from_string(config["string"])
 st.subheader("Select the prediction model")
 
 choice = st.radio(
-    label="Prediction Model",
-    options=["A", "B", "C"],
+    "Prediction Model",
+    ["A", "B", "C"],
     format_func=lambda x: {
-        "A": "Sensitive Predictor (minimizes overlooking potentially effective hits, ideal for early-stage virtual screening)",
-        "B": "Precise Predictor (more confident in positive-predicted hits, ideal for streamlining virtual screening)",
-        "C": "Balanced Predictor (balances sensitivity and specificity)"
+        "A": "Sensitive Predictor (early-stage, avoid missing hits)",
+        "B": "Precise Predictor (high confidence in positives)",
+        "C": "Balanced Predictor (balances sensitivity/specificity)"
     }[x]
 )
+
+config = MODELS[choice]
+st.success(f"Selected model: {config['name']}")
 
 # ---------------- DATA LOADING ----------------
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
@@ -92,6 +95,7 @@ output_df = pd.DataFrame({
     id_column: ids,
     "Class": predicted_classes
 })
+
 
 
 
