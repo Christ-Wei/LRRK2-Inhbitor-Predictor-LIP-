@@ -6,6 +6,9 @@ import joblib
 from io import BytesIO
 import base64
 import os
+import numpy as np
+from rdkit import DataStructs
+
 
 # ---------------- USER CHOICE ----------------
 print("Please select the prediction model:")
@@ -16,55 +19,6 @@ print("C. Balanced Predictor : balances sensitivity and specificity. ")
 choice = input("Enter your choice (A, B, or C): ").strip().upper()
 if choice not in ["A", "B", "C"]:
     raise ValueError("Invalid choice! Please enter Letter A, B, or C.")
-
-# ---------------- PATH INPUT ----------------
-while True:
-    folder_path = input("Enter the folder path: ").strip()
-    if not os.path.isdir(folder_path):
-        print(f"[ERROR] Folder not found: {folder_path}")
-    else:
-        break
-
-while True:
-    csv_file_name = input("Enter the CSV file name: ").strip()
-    csv_file = os.path.join(folder_path, csv_file_name)
-    if not os.path.isfile(csv_file):
-        print(f"[ERROR] File not found: {csv_file}")
-    else:
-        break
-
-# Load CSV once for column check
-df = pd.read_csv(csv_file)
-
-while True:
-    smiles_column = input("Enter the SMILES column name: ").strip()
-    if smiles_column not in df.columns:
-        print(f"[ERROR] Column not found: {smiles_column}")
-    else:
-        break
-
-while True:
-    id_column = input("Enter the ID column name: ").strip()
-    if id_column not in df.columns:
-        print(f"[ERROR] Column not found: {id_column}")
-    else:
-        break
-
-
-normalized_path = os.path.normpath(folder_path)
-final_path = normalized_path + '/' if not normalized_path.endswith('/') else normalized_path
-path = final_path.replace(os.path.sep, '/')
-log_file_path = path + 'LRRK2InhibitorPredictor_log.txt'
-
-def log_message(message):
-    with open(log_file_path, 'a') as log_file:
-        log_file.write(message + '\n')
-
-def load_model_from_string(base64_string):
-    model_bytes = base64.b64decode(base64_string)
-    model_buffer = BytesIO(model_bytes)
-    model = joblib.load(model_buffer)
-    return model
 
 # ---------------- MODEL CONFIGS ----------------
 MODELS = {
@@ -92,46 +46,39 @@ config = MODELS[choice]
 model = load_model_from_string(config["string"])
 
 # ---------------- DATA LOADING ----------------
-csv_file = path + os.path.normpath(csv_file_name)
-df = pd.read_csv(csv_file)
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-log_message(f"Running {config['name']} Predictor")
-log_message(f"Input file: {csv_file}")
-log_message(f"SMILES column: {smiles_column}")
-log_message(f"ID column: {id_column}")
+    st.write("Columns in your file:", list(df.columns))
 
-if smiles_column not in df.columns or id_column not in df.columns:
-    raise ValueError("The specified column names do not exist in the DataFrame.")
+    smiles_column = st.selectbox("Select the SMILES column", df.columns)
+    id_column = st.selectbox("Select the ID column", df.columns)
+
+    st.success(f"SMILES column: {smiles_column}, ID column: {id_column}")
+
 
 # ---------------- FEATURE GENERATION ----------------
-output_df = pd.DataFrame(columns=[smiles_column, id_column] + ['Morgan_' + str(i+1) for i in range(128)])
-start_conversion = time.perf_counter()
+fps, ids, smiles_list = [], [], []
 
 for _, row in df.iterrows():
-    Smiles = row[smiles_column]
-    ID = row[id_column]
-    molecule = Chem.MolFromSmiles(Smiles)
-    if molecule is not None:
-        fp = AllChem.GetMorganFingerprintAsBitVect(molecule, config["radius"], nBits=128)
-        fp_list = list(fp.ToBitString())
-        row_data = [Smiles, ID] + fp_list
-        output_df.loc[len(output_df)] = row_data
+    smi = row[smiles_column]
+    mol = Chem.MolFromSmiles(smi)
+    if mol is not None:
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, config["radius"], nBits=128)
+        arr = np.zeros((1,))
+        DataStructs.ConvertToNumpyArray(fp, arr)
+        fps.append(arr)
+        ids.append(row[id_column])
+        smiles_list.append(smi)
 
-features_path = path + 'Features.csv'
-output_df.to_csv(features_path, index=False)
-end_conversion = time.perf_counter()
-log_message(f'Feature Generation consumes: {end_conversion - start_conversion:.2f} s')
+X_predict = np.array(fps)
 
 # ---------------- PREDICTION ----------------
-output_path = path + config["output"]
-features_df = pd.read_csv(features_path)
-X_predict = features_df.iloc[:, 2:]
 predicted_classes = model.predict(X_predict)
-features_df['Class'] = predicted_classes
-output_df = features_df[[smiles_column, id_column, 'Class']]
-output_df.to_csv(output_path, index=False)
-os.remove(features_path)
 
-log_message(f"Predictions saved to {output_path}")
-end_virtual = time.perf_counter()
-log_message(f'Prediction consumes: {end_virtual - end_conversion:.2f} s')
+output_df = pd.DataFrame({
+    smiles_column: smiles_list,
+    id_column: ids,
+    "Class": predicted_classes
+})
